@@ -36,23 +36,13 @@ defmodule Server do
   end
 
 
-  def calculateCount(old_avg,new_avg,counter,processID) do
-    diffAvg = abs(old_avg-new_avg)
-    #IO.puts(new_avg)
-    if diffAvg <= :math.pow(10,-10) do
-      counter = counter + 1
-      IO.puts(counter)
-      setCounter(processID,counter)
-      if counter == 3 do
-        # here terminate that process
-        IO.puts("Count Reached 3")
-      end
+  def calculateCount(diff,count) do
+    if(diff < :math.pow(10,-10) && (count==2)) do
+      converge()
+      -1
     else
-      #since we are looking at the consecutive round so we again set counter to 0
-      counter = 0
-      setCounter(processID,counter)
+      if(diff >= :math.pow(10,-10)) do 0 else count+1 end
     end
-    #counter
   end
 
   @spec updateNeighbour(atom | pid | {atom, any} | {:via, atom, any}, any) :: :ok
@@ -64,8 +54,8 @@ defmodule Server do
     [counter,curr_list,s,w] = state
     {:noreply,[counter,curr_list--[elementToBeRemoved],s,w]}
   end
-  def updateState(pid,sn,wn) do
-    GenServer.cast(pid,{:updateSW,sn,wn})
+  def updateState(pid,sn,wn,c) do
+    GenServer.cast(pid,{:updateSW,sn,wn,c})
   end
 
   #def sendToRandom(to,s,w) do
@@ -78,9 +68,9 @@ defmodule Server do
     state
   end
 
-  def handle_cast({:updateSW,sn,wn},state) do
+  def handle_cast({:updateSW,sn,wn,c},state) do
     [counter,curr_list,_s,_w] = state
-    {:noreply,[counter,curr_list,sn,wn]}
+    {:noreply,[c,curr_list,sn,wn]}
   end
 
   def handle_call({:getstate},_from,state) do
@@ -93,34 +83,26 @@ defmodule Server do
   end
 
   def sendPushSum(sn,wn,processID) do
-    [counter,curr_list,s,w] = GenServer.call(processID,{:getstate})
+    [count,curr_list,s,w] = GenServer.call(processID,{:getstate})
     #IO.puts(counter)
-    if counter <3 do
-      #IO.puts("inside")
       old_avg = s/w
       new_avg = (s+sn)/(w+wn)
-      calculateCount(old_avg,new_avg,counter,self())
-        s = s + sn
-        w = w + wn
-        rand_neigh = getRandomNeighbour(curr_list)
-        if rand_neigh == [] do
-          #here we will terminate that node because it has nothing to transmit
-        else
-          [{_,rand_pid}] = :ets.lookup(:processTable, rand_neigh)
-          updateState(self(),s/2,w/2)
-          sendPushSum(s/2,w/2,rand_pid)
-        end
-    else
+      diff = abs(old_avg-new_avg)
       rand_neigh = getRandomNeighbour(curr_list)
-      if rand_neigh == [] do
-        #here we will terminate that node because it has nothing to transmit
-      else
-        [{_,rand_pid}] = :ets.lookup(:processTable, rand_neigh)
-        updateState(self(),s/2,w/2)
-        sendPushSum(s/2,w/2,rand_pid)
+      [{_,rand_pid}] = :ets.lookup(:processTable, rand_neigh)
+      if count != -1 do
+        ncount = calculateCount(diff,count)
+        updateState(processID,(s+sn)/2,(w+wn)/2,ncount)
       end
-      IO.puts("Converged")
-    end
+        if rand_neigh != [] do
+          val1 = if(count != -1) do (s+sn)/2 else s/2 end
+          val2 = if(count != -1) do (w+wn)/2 else w/2 end
+          #IO.puts("From #{inspect pname} to #{inspect neighNode}")
+          spawn fn -> sendPushSum(val1,val2,rand_pid) end
+          Process.sleep(100)
+        else
+          converge()
+        end
   end
 
 
@@ -160,8 +142,22 @@ defmodule Server do
 
 #---------------------------Converge----------------------
   def converge() do
-    IO.puts("Converged!")
+    [{_,currentCount}]=:ets.lookup(:counterTable,"counter")
+    c = currentCount + 1
+    :ets.insert(:counterTable,{"counter",c})
+
+    if(c>=trunc(4*0.9)) do
+      IO.puts("Convergence reached")
+      System.halt(1)
+      #GenServer.call(self(),{:converge})
+    end
   end
+
+  def handle_call({:converge},_from,_) do
+    IO.puts("Convergence reached")
+    System.halt(1)
+  end
+
   def getRandomNeighbour(curr_list) do
     if curr_list == [] do
       []
