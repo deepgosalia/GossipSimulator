@@ -53,6 +53,8 @@ end
 
 
 
+
+
 defmodule Topology do
   def main(numNodes,topology,algorithm) do
     :ets.new(:processTable, [:set, :public, :named_table])
@@ -88,6 +90,10 @@ defmodule Topology do
     Server.pushMessage(pid,message)
   end
 
+  def pushSum(numNodes) do
+
+  end
+
   def full(_numNodes) do
 
   end
@@ -102,7 +108,8 @@ defmodule Topology do
       [{_,pid}] = :ets.lookup(:processTable, x)
       Server.insertNeighbour(list,pid)
     end)
-    execute(numNodes)
+    #execute(numNodes)
+    pushSum(numNodes)
 
   end
 
