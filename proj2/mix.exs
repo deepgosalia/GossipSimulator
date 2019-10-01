@@ -15,7 +15,6 @@ defmodule Proj2.MixProject do
   def application do
     [
       extra_applications: [:logger],
-      #mod: {Topology,[]}
     ]
   end
 
