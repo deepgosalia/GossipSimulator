@@ -1,21 +1,37 @@
-# Proj2
 
-**TODO: Add description**
+##1. Team Members 
 
-## Installation
+ Rohan Nitin Gandhi  1791-0958
+ Deep Chetan Gosalia 5697-9299
+ 
+##2. How to run the program:
+mix run my_program.exs Numnodes topology algorithm
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `proj2` to your list of dependencies in `mix.exs`:
+##3. What is Working
 
-```elixir
-def deps do
-  [
-    {:proj2, "~> 0.1.0"}
-  ]
-end
-```
+1. Full
+2. Line
+3. Random 2D
+4. 3D torus
+5. Honeycomb
+6. Honeycomb with a random neighbor 
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/proj2](https://hexdocs.pm/proj2).
+ All of these topologies are working for both Gossip and Push Sum algorithm.
+
+
+
+##4. What is the largest network you managed to deal with for each type of topology and algorithm 
+
+__________________| Gossip     | Push-Sum|   
+Full              | 7000       |  6000   |
+line              | 1000       |  300    |
+Random2D          | 7000       |  2000   |
+3Dtorus           | 10000      |  10000  |
+Honeycomb         | 2000       |  600    |
+Honeycomb         | 10000      |  10000  |
+(random neighbor) |            |         |
+
+If the code is executed for the higher range from the above mentioned then it run out of memory 
+and it depends on the system.
+
 

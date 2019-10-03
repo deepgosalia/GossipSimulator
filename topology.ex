@@ -8,8 +8,8 @@ defmodule Server do
     GenServer.cast(to, {:putNeighbour,neigh_list})
   end
 
-  def pushMessage(to, message) do
-    GenServer.cast(to, {:sendMessage,message})
+  def pushMessage(to, message,stime,numNodes) do
+    GenServer.cast(to, {:sendMessage,message,stime,numNodes})
   end
 
   def handle_cast({:putNeighbour,neighbour},state) do
@@ -17,32 +17,39 @@ defmodule Server do
     {:noreply,[counter,curr_list++neighbour]}
   end
 
-  def handle_cast({:sendMessage,message},state) do
+  def handle_cast({:sendMessage,message,stime,numNodes},state) do
     [counter,curr_list] = state
     counter = counter+1
+    IO.puts(counter)
     [{_,count}]=:ets.lookup(:counterTable, "counter")
     [{_,status}] = :ets.lookup(:trackTable, "check")
-    if count >=4  and status == 0 do
+    if count >=numNodes  and status == 0 do
       :ets.insert(:trackTable, {"check",1})
-      converge()
+      converge(stime)
     end
-    if counter==10 and count<4 do
+    if counter==10 and count<numNodes do
       [{_,count}]=:ets.lookup(:counterTable, "counter")
       :ets.insert(:counterTable, {"counter",count+1})
     end
     [{_,count}]=:ets.lookup(:counterTable, "counter")
-    if counter <10 and count <4 do
+    if counter <10 and count <numNodes do
       rand_neigh = getRandomNeighbour(curr_list)
       [{_,pid}] = :ets.lookup(:processTable, rand_neigh)
-      GenServer.cast(pid, {:sendMessage,message})
-      GenServer.cast(self(),{:sendMessage,message})
+      Task.async(fn->Server.pushMessage(pid,message,stime,numNodes)end)
+      #Server.pushMessage(self(),message,stime,numNodes)
+
+      #GenServer.cast(pid, {:sendMessage,message,stime,numNodes})
+      #Process.sleep(100)
+      #GenServer.cast(self(),{:sendMessage,message,stime,numNodes})
     end
     {:noreply,[counter,curr_list]}
   end
 
 
-  def converge() do
-    IO.puts("Converged!")
+  def converge(stime) do
+  endTime = System.monotonic_time(:millisecond)
+  contime = endTime - stime
+    IO.puts("Converged at #{contime}")
   end
 
   def getRandomNeighbour(curr_list) do
@@ -84,10 +91,11 @@ defmodule Topology do
   end
 
   def execute(numNodes) do
+    stime = System.monotonic_time(:millisecond)
     rand_node = Enum.random(1..numNodes)
     [{_,pid}] = :ets.lookup(:processTable, rand_node)
     message = "gossip"
-    Server.pushMessage(pid,message)
+    Server.pushMessage(pid,message,stime,numNodes)
   end
 
   def pushSum(numNodes) do
@@ -108,8 +116,8 @@ defmodule Topology do
       [{_,pid}] = :ets.lookup(:processTable, x)
       Server.insertNeighbour(list,pid)
     end)
-    #execute(numNodes)
-    pushSum(numNodes)
+    execute(numNodes)
+    #pushSum(numNodes)
 
   end
 
@@ -130,5 +138,5 @@ defmodule Topology do
   end
 
 end
-
+Topology.main(100,"line","gossip")
 
